@@ -1,3 +1,5 @@
+--this is a sql script to dump all tables from a sqlite3 database onto the screen. save as megadump.sql
+
 -- Create TEMP table with columns from multiple moz_* tables
 CREATE TEMP TABLE alldump (
     -- moz_places
