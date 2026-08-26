@@ -33,24 +33,27 @@ TOOLS=(
 	
 )
 # ====================================================================
-# HARDENED PRE-INSTALL: Include GTK3 Development Headers
+# HARDENED PRE-INSTALL: Safe Package Verification
 # ====================================================================
 echo "[*] Verifying critical OS building tools are present..."
 MISSING_PKGS=()
-# Append libgeoip-dev to your MISSING_PKGS line:
-command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev" "libgeoip-dev"  "flex" "bison")
-command -v go &>/dev/null || MISSING_PKGS+=("golang-go")
+
+# 1. Base command existence checks
+command -v cmake &>/dev/null  || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev")
+command -v go &>/dev/null     || MISSING_PKGS+=("golang-go")
 command -v docker &>/dev/null || MISSING_PKGS+=("docker.io")
 
-# Fallback: Double check if the specific GTK3 package is missing even if cmake is present
-dpkg -l | grep -q "libgtk-3-dev" || MISSING_PKGS+=("libgtk-3-dev")
-dpkg -l | grep -q "flex" || MISSING_PKGS+=("flex")
-dpkg -l | grep -q "bison" || MISSING_PKGS+=("bison")
+# 2. Strict package-name query verification checks (Prevents false folder text matching)
+dpkg-query -W -f='${Status}' flex 2>/dev/null           | grep -q "ok installed" || MISSING_PKGS+=("flex")
+dpkg-query -W -f='${Status}' bison 2>/dev/null          | grep -q "ok installed" || MISSING_PKGS+=("bison")
+dpkg-query -W -f='${Status}' libgtk-3-dev 2>/dev/null   | grep -q "ok installed" || MISSING_PKGS+=("libgtk-3-dev")
 
+# 3. Execution Block
 if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
     echo "[i] Installing missing compilation environments: ${MISSING_PKGS[*]}"
     sudo apt-get update && sudo apt-get install -y "${MISSING_PKGS[@]}"
 fi
+
 
 
 # Create the target directory if it doesn't exist
@@ -170,27 +173,25 @@ if [ -d "$TARGET_DIR/Loki_on_Kali/Docker" ]; then
     fi
 fi
 
+# ====================================================================
+# FIX 2: Protected Ettercap Compiling Blocks
+# ====================================================================
 echo "[+] Installing Ettercap"
-if [ -d "$TARGET_DIR/ettercap" ]; then
-    cd "$TARGET_DIR/ettercap" || exit 1
-    mkdir -p build && cd build || exit 1
-    
-    # Corrected flags: Force the compiler to disable the GeoIP module check natively
-    cmake -DENABLE_GEOIP=OFF .. && make && sudo make install
+if command -v ettercap &>/dev/null; then
+    echo "[+] Ettercap is already installed globally. Skipping compilation..."
+else
+    if [ -d "$TARGET_DIR/ettercap" ]; then
+        cd "$TARGET_DIR/ettercap" || exit 1
+        
+        # CRITICAL: Clean out old corrupted CMake cache states completely
+        rm -rf build && mkdir build && cd build || exit 1
+        
+        # Force compilation with completely suppressed GeoIP module bindings
+        cmake -DENABLE_GEOIP=OFF .. && make && sudo make install
+    fi
 fi
 
 
-
-
-			# echo "[+] Installing Loki"
-			# folder=$TARGET_DIR/Loki_on_Kali/Docker
-			# cd folder; sudo sh ./build.sh
-			# chmod u+x Docker/run_loki_*.sh
-			# sudo cp Docker/run_loki_*.sh /usr/local/sbin
-			# echo "[+] Loki installed successfully. use with `sudo run_loki_gtk.sh`"
-
-			# echo "[+] Installing Ettercap"
-			# cd $TARGET_DIR/Ettercap ; mkdir build && cd build; cmake .. ; sudo make install
 
 #check for .NET 8 SDK
 if command -v dotnet &>/dev/null && dotnet --list-sdks | grep -q "^8\."; then
@@ -206,22 +207,20 @@ fi
 # ====================================================================
 # HARDENED TITANIS BUILD: Force Preview Support for C# 13 Syntax
 # ====================================================================
-if ! command -v Smb2Client &>/dev/null; then
+if command -v Smb2Client &>/dev/null || [ -d "/opt/Smb2Client" ]; then
+	echo "[+] Titanis installation detected."	
+else
 	echo "[i] Compiling Titanis framework now..."
 	cd "$TARGET_DIR/Titanis" || exit 1
     
     # Maintain preview syntax compatibility for C# 13 components
     find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>[^<]*<\/LangVersion>/<LangVersion>preview<\/LangVersion>/g' {} +
-    find . -type f -name "*.csproj" | while read -r csproj; do
-        if ! grep -q "<LangVersion>" "$csproj"; then
-            sed -i 's/<\/PropertyGroup>/  <LangVersion>preview<\/LangVersion>\n<\/PropertyGroup>/' "$csproj"
-        fi
-    done
     
-    # Force .NET build engine to ignore strict code warnings, skip broken doc tasks, and assemble the binaries
-	dotnet build --configuration Release /p:TreatWarningsAsErrors=false /p:WarningsAsErrors="" /p:BuildDocs=false
-else
-	echo "[+] Titanis installation detected."	
+    # Force the local compiler target settings to drop documentation generation steps
+    find . -type f -name "*.csproj" -exec sed -i 's/<\/PropertyGroup>/  <BuildDocs>false<\/BuildDocs>\n  <TreatWarningsAsErrors>false<\/TreatWarningsAsErrors>\n<\/PropertyGroup>/g' {} +
+    
+    # Suppress broken help/man target generators and build execution files cleanly
+	dotnet build --configuration Release -p:BuildDocs=false -p:TreatWarningsAsErrors=false -p:WarningsAsErrors=""
 fi
 
 
@@ -256,8 +255,15 @@ else
 fi
 
 #installing cerno
-echo "[i] Installing Cerno via pipx..."
-pipx install git+https://github.com/ridgebackinfosec/cerno.git
+# ====================================================================
+# FIX 4: Prevent Redundant Pipx Deployments for Cerno
+# ====================================================================
+if command -v cerno &>/dev/null; then
+    echo "[+] Cerno is already installed globally. Skipping..."
+else
+	echo "[i] Installing Cerno via pipx..."
+	pipx install git+https://github.com/ridgebackinfosec/cerno.git
+fi
 
 
 # ====================================================================
