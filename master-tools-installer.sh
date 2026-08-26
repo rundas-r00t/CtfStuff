@@ -205,7 +205,7 @@ else
 fi
 
 
-
+echo "[i] Titanis installation is currently paused until C# v13 is released."
 # i'm removing this block for Titanis as a temporary measure since it's still under development and currently utilizing an unreleased C# 13 preview. i'll add this back in once the C# version is fully released.
 # ====================================================================
 # HARDENED TITANIS BUILD: Force Preview Support for C# 13 Syntax
