@@ -129,14 +129,16 @@ fi
 
 echo "---------------------------------"
 
-# check for NeuroSploit
-if ! command -v neurosploit &> /dev/null && [ ! -d "$HOME/neurosploit" ]; then
-    echo "[i] NeuroSploit is not detected. Attempting to install..."
-    # Note: Using sudo here as setup scripts typically require root privileges
-    curl -fsSL https://raw.githubusercontent.com/JoasASantos/NeuroSploit/main/setup.sh | sudo bash
-else
+# ====================================================================
+# FIXED: Checking Root and Local Bin Directories for NeuroSploit
+# ====================================================================
+if command -v neurosploit &> /dev/null || [ -d "/root/.neurosploit-app" ] || [ -d "$HOME/.neurosploit" ]; then
     echo "[+] NeuroSploit installation detected."
+else
+    echo "[i] NeuroSploit is not detected. Attempting to install..."
+    curl -fsSL https://githubusercontent.com | sudo bash
 fi  
+ 
 	
 echo "---------------------------------"
 echo "[+] All tools downloaded successfully! Check your folder at: $TARGET_DIR"
@@ -169,8 +171,11 @@ echo "[+] Installing Ettercap"
 if [ -d "$TARGET_DIR/ettercap" ]; then
     cd "$TARGET_DIR/ettercap" || exit 1
     mkdir -p build && cd build || exit 1
-    cmake .. && make && sudo make install
+    
+    # Force cmake to bypass missing GeoIP checks and build cleanly
+    cmake -DBUILD_WITH_GEOIP=OFF .. && make && sudo make install
 fi
+
 
 
 			# echo "[+] Installing Loki"
@@ -197,24 +202,24 @@ fi
 # ====================================================================
 # HARDENED TITANIS BUILD: Force Preview Support for C# 13 Syntax
 # ====================================================================
-if ! command -v Smb2Client &>/dev/null && [ ! -d "/opt/Smb2Client" ]; then
-	echo "[i] Titanis is not installed. Hotpatching configuration files and compiling..."
+if ! command -v Smb2Client &>/dev/null; then
+	echo "[i] Compiling Titanis framework now..."
 	cd "$TARGET_DIR/Titanis" || exit 1
     
-    # Force the compiler to enable preview framework features so modern C# 13 constructs work seamlessly
+    # Maintain preview syntax compatibility for C# 13 components
     find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>[^<]*<\/LangVersion>/<LangVersion>preview<\/LangVersion>/g' {} +
-    
-    # Inject language configuration if a specific project doesn't have it explicitly declared
     find . -type f -name "*.csproj" | while read -r csproj; do
         if ! grep -q "<LangVersion>" "$csproj"; then
             sed -i 's/<\/PropertyGroup>/  <LangVersion>preview<\/LangVersion>\n<\/PropertyGroup>/' "$csproj"
         fi
     done
     
-	dotnet build --configuration Release
+    # Force .NET build engine to ignore strict code warnings and assemble the binaries
+	dotnet build --configuration Release /p:TreatWarningsAsErrors=false /p:WarningsAsErrors=""
 else
 	echo "[+] Titanis installation detected."	
 fi
+
 
 
 #unpacking defendnot zips
