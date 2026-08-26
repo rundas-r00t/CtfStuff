@@ -32,6 +32,17 @@ TOOLS=(
 	"https://github.com/Raizo62/Loki_on_Kali"
 	
 )
+#verify pre-req's and env-dependencies
+echo "[*] Verifying critical OS building tools are present..."
+MISSING_PKGS=()
+command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev")
+command -v go &>/dev/null || MISSING_PKGS+=("golang-go")
+command -v docker &>/dev/null || MISSING_PKGS+=("docker.io")
+
+if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
+    echo "[i] Installing missing compilation environments: ${MISSING_PKGS[*]}"
+    sudo apt-get update && sudo apt-get install -y "${MISSING_PKGS[@]}"
+fi
 
 # Create the target directory if it doesn't exist
 if [ ! -d "$TARGET_DIR" ]; then
@@ -59,7 +70,7 @@ for REPO in "${TOOLS[@]}"; do
 done
 
 # ====================================================================
-# FIX #1: Organized GitHub Release Downloader
+# FIX #1: Organized GitHub Release Downloader for EvilGinX2
 # ====================================================================
 echo "[*] Fetching pre-compiled release files for evilginx2..."
 EVILGINX_DIST="$TARGET_DIR/evilginx2/compiled_releases"
@@ -136,16 +147,24 @@ echo "[+] Beginning tool installations..."
 # FIX #2: Correct Path Declarations and Navigation
 # ====================================================================
 echo "[+] Installing Loki"
-cd "$TARGET_DIR/Loki_on_Kali/Docker" || exit 1
-sudo sh ./build.sh
-chmod u+x run_loki_*.sh
-sudo cp run_loki_*.sh /usr/local/sbin
-echo "[+] Loki installed successfully. use with 'sudo run_loki_gtk.sh'"
+if [ -d "$TARGET_DIR/Loki_on_Kali/Docker" ]; then
+    cd "$TARGET_DIR/Loki_on_Kali/Docker" || exit 1
+    if command -v docker &>/dev/null; then
+        sudo sh ./build.sh
+        chmod u+x run_loki_*.sh
+        sudo cp run_loki_*.sh /usr/local/sbin 2>/dev/null
+	echo "[+] Loki installed successfully. use with 'sudo run_loki_gtk.sh'"
+    else
+        echo "[-] Skipping Loki Docker compilation: Docker service not active."
+    fi
+fi
 
 echo "[+] Installing Ettercap"
-cd "$TARGET_DIR/ettercap" || exit 1
-mkdir -p build && cd build || exit 1
-cmake .. && make && sudo make install
+if [ -d "$TARGET_DIR/ettercap" ]; then
+    cd "$TARGET_DIR/ettercap" || exit 1
+    mkdir -p build && cd build || exit 1
+    cmake .. && make && sudo make install
+fi
 
 
 			# echo "[+] Installing Loki"
@@ -173,25 +192,28 @@ fi
 if ! command -v Smb2Client &>/dev/null &&  [ ! -d "/opt/Smb2Client" ]; then
 	echo "[i] Titanis is not installed. Installing Now."
 	cd "$TARGET_DIR/Titanis"
-	dotnet build
+# Fix #2: Dynamic hotpatch to downgrade unsupported langversion targets from 13.0 to 12.0
+    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>13.0<\/LangVersion>/<LangVersion>12.0<\/LangVersion>/g' {} +
+    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>preview<\/LangVersion>/<LangVersion>12.0<\/LangVersion>/g' {} +
+    
+	dotnet build --configuration Release
 else
 	echo "[+] Titanis installation detected."	
 fi
 
 #unpacking defendnot zips
 echo "installing defendnot"
-
-cd "$TARGET_DIR/defendnot" ; mkdir -p compiled ; cd compiled ; 
-wget https://github.com/es3n1n/defendnot/releases/download/v1.6.0/x64.zip
-wget https://github.com/es3n1n/defendnot/releases/download/v1.6.0/x86.zip
+if [ -d "$TARGET_DIR/defendnot" ]; then
+	cd "$TARGET_DIR/defendnot" ; mkdir -p compiled ; cd compiled ; 
+	wget https://github.com/es3n1n/defendnot/releases/download/v1.6.0/x64.zip
+	wget https://github.com/es3n1n/defendnot/releases/download/v1.6.0/x86.zip
 
 # Extract them into separate subfolders to keep them clean
-unzip x86.zip -d x86/
-unzip x64.zip -d x64/
-
+	unzip x86.zip -d x86/
+	unzip x64.zip -d x64/
 # Clean up the downloaded zips
-rm x86.zip x64.zip
-
+	rm x86.zip x64.zip
+fi
 # Check if pipx is installed
 if command -v pipx &>/dev/null; then
     echo "[+] pipx is already installed. Skipping..."
@@ -212,9 +234,10 @@ pipx install git+https://github.com/ridgebackinfosec/cerno.git
 
 
 #installing AutoPentestX
-echo "[i] Installing AutoPentestX..."
-cd "$TARGET_DIR/AutoPentestX" ; chmod +x install.sh ; ./install.sh
-
+if [ -d "$TARGET_DIR/AutoPentestX" ]; then
+	echo "[i] Installing AutoPentestX..."
+	cd "$TARGET_DIR/AutoPentestX" ; chmod +x install.sh ; ./install.sh
+fi
 # ====================================================================
 # FIX #4A: Aligned AutoPentestX Global Command Wrapper
 # ====================================================================
@@ -358,7 +381,16 @@ else
 			# python3 -m venv "$ENV_DIR"
     
     # 2. Upgrade pip and install the fork directly from GitHub in one go
-    echo "[i] Installing scapy-red fork into environment..."
+if [ -f "$ENV_DIR/bin/scapy-smbscan" ]; then
+    echo "[+] scapy-red tools already installed. Skipping..."
+else
+	echo "[i] Installing scapy-red fork into environment..."
+	# Fix #3: Ensure the core environment workspace is actually present before appending packages
+    if [ ! -d "$ENV_DIR" ]; then
+        sudo mkdir -p "$ENV_DIR"
+        sudo chown -R $USER:$USER "$ENV_DIR"
+        python3 -m venv "$ENV_DIR"
+    fi
     "$ENV_DIR/bin/pip" install --upgrade pip
     "$ENV_DIR/bin/pip" install git+https://github.com/rundas-r00t/scapy-red.git
     
