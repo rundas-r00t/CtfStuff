@@ -37,7 +37,8 @@ TOOLS=(
 # ====================================================================
 echo "[*] Verifying critical OS building tools are present..."
 MISSING_PKGS=()
-command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev")
+# Append libgeoip-dev to your MISSING_PKGS line:
+command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev" "libgeoip-dev")
 command -v go &>/dev/null || MISSING_PKGS+=("golang-go")
 command -v docker &>/dev/null || MISSING_PKGS+=("docker.io")
 
@@ -172,9 +173,10 @@ if [ -d "$TARGET_DIR/ettercap" ]; then
     cd "$TARGET_DIR/ettercap" || exit 1
     mkdir -p build && cd build || exit 1
     
-    # Force cmake to bypass missing GeoIP checks and build cleanly
-    cmake -DBUILD_WITH_GEOIP=OFF .. && make && sudo make install
+    # Corrected flags: Force the compiler to disable the GeoIP module check natively
+    cmake -DENABLE_GEOIP=OFF .. && make && sudo make install
 fi
+
 
 
 
