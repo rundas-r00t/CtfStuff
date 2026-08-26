@@ -142,7 +142,7 @@ if command -v neurosploit &> /dev/null || [ -d "/root/.neurosploit-app" ] || [ -
     echo "[+] NeuroSploit installation detected."
 else
     echo "[i] NeuroSploit is not detected. Attempting to install..."
-    curl -fsSL https://githubusercontent.com | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/JoasASantos/NeuroSploit/main/setup.sh | sudo bash
 fi  
  
 	
