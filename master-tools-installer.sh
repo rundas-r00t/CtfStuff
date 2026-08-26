@@ -214,11 +214,12 @@ if ! command -v Smb2Client &>/dev/null; then
         fi
     done
     
-    # Force .NET build engine to ignore strict code warnings and assemble the binaries
-	dotnet build --configuration Release /p:TreatWarningsAsErrors=false /p:WarningsAsErrors=""
+    # Force .NET build engine to ignore strict code warnings, skip broken doc tasks, and assemble the binaries
+	dotnet build --configuration Release /p:TreatWarningsAsErrors=false /p:WarningsAsErrors="" /p:BuildDocs=false
 else
 	echo "[+] Titanis installation detected."	
 fi
+
 
 
 
@@ -255,11 +256,20 @@ echo "[i] Installing Cerno via pipx..."
 pipx install git+https://github.com/ridgebackinfosec/cerno.git
 
 
-#installing AutoPentestX
-if [ -d "$TARGET_DIR/AutoPentestX" ]; then
-	echo "[i] Installing AutoPentestX..."
-	cd "$TARGET_DIR/AutoPentestX" ; chmod +x install.sh ; ./install.sh
-fi
+# ====================================================================
+# FIXED: Corrected Command Checks and Silent Pipeline Execution
+# ====================================================================
+if command -v autopentestx &>/dev/null || [ -d "$TARGET_DIR/AutoPentestX" ] || [ -f "/usr/local/bin/autopentestx" ]; then
+    echo "[+] AutoPentestX is already installed. Skipping..."
+else
+    echo "[i] Installing AutoPentestX..."
+    cd "$TARGET_DIR/AutoPentestX" || exit 1
+    chmod +x install.sh
+    
+    # Pass 'no' automatically to any interactive user setup prompts
+    ./install.sh <<< "n"
+
+
 # ====================================================================
 # FIX #4A: Aligned AutoPentestX Global Command Wrapper
 # ====================================================================
@@ -288,6 +298,8 @@ sudo chmod +x /usr/local/bin/autopentestx
 			# sudo chmod +x /usr/local/bin/autopentestx
 
 echo "[+] Success! You can now run 'autopentestx <IP_ADDRESS>' globally."
+
+fi
 
 # ====================================================================
 # FIX #3: Safe Sandfly Navigation without Global Path Corruptions
