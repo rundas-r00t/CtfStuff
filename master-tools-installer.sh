@@ -18,7 +18,7 @@ TOOLS=(
     "https://github.com/rundas-r00t/cerno"
     "https://github.com/rundas-r00t/defendnot"
     "https://github.com/rundas-r00t/discover"
-    "https://github.com/rundas-r00t/Titanis"
+  #  "https://github.com/rundas-r00t/Titanis"
     "https://github.com/rundas-r00t/evilginx2"
     "https://github.com/rundas-r00t/UACME-compiled"
     "https://github.com/rundas-r00t/Timeroast"
@@ -204,24 +204,27 @@ else
 	sudo apt-get update && sudo apt-get install -y dotnet-sdk-8.0
 fi
 
+
+
+# i'm removing this block for Titanis as a temporary measure since it's still under development and currently utilizing an unreleased C# 13 preview. i'll add this back in once the C# version is fully released.
 # ====================================================================
 # HARDENED TITANIS BUILD: Force Preview Support for C# 13 Syntax
 # ====================================================================
-if command -v Smb2Client &>/dev/null || [ -d "/opt/Smb2Client" ]; then
-	echo "[+] Titanis installation detected."	
-else
-	echo "[i] Compiling Titanis framework now..."
-	cd "$TARGET_DIR/Titanis" || exit 1
+#if command -v Smb2Client &>/dev/null || [ -d "/opt/Smb2Client" ]; then
+#	echo "[+] Titanis installation detected."	
+#else
+#	echo "[i] Compiling Titanis framework now..."
+#	cd "$TARGET_DIR/Titanis" || exit 1
     
     # Maintain preview syntax compatibility for C# 13 components
-    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>[^<]*<\/LangVersion>/<LangVersion>preview<\/LangVersion>/g' {} +
+#    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>[^<]*<\/LangVersion>/<LangVersion>preview<\/LangVersion>/g' {} +
     
     # Force the local compiler target settings to drop documentation generation steps
-    find . -type f -name "*.csproj" -exec sed -i 's/<\/PropertyGroup>/  <BuildDocs>false<\/BuildDocs>\n  <TreatWarningsAsErrors>false<\/TreatWarningsAsErrors>\n<\/PropertyGroup>/g' {} +
+#    find . -type f -name "*.csproj" -exec sed -i 's/<\/PropertyGroup>/  <BuildDocs>false<\/BuildDocs>\n  <TreatWarningsAsErrors>false<\/TreatWarningsAsErrors>\n<\/PropertyGroup>/g' {} +
     
     # Suppress broken help/man target generators and build execution files cleanly
-	dotnet build --configuration Release -p:BuildDocs=false -p:TreatWarningsAsErrors=false -p:WarningsAsErrors=""
-fi
+#	dotnet build --configuration Release -p:BuildDocs=false -p:TreatWarningsAsErrors=false -p:WarningsAsErrors=""
+#fi
 
 
 
