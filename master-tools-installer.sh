@@ -38,12 +38,14 @@ TOOLS=(
 echo "[*] Verifying critical OS building tools are present..."
 MISSING_PKGS=()
 # Append libgeoip-dev to your MISSING_PKGS line:
-command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev" "libgeoip-dev")
+command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev" "libgeoip-dev"  "flex" "bison")
 command -v go &>/dev/null || MISSING_PKGS+=("golang-go")
 command -v docker &>/dev/null || MISSING_PKGS+=("docker.io")
 
 # Fallback: Double check if the specific GTK3 package is missing even if cmake is present
 dpkg -l | grep -q "libgtk-3-dev" || MISSING_PKGS+=("libgtk-3-dev")
+dpkg -l | grep -q "flex" || MISSING_PKGS+=("flex")
+dpkg -l | grep -q "bison" || MISSING_PKGS+=("bison")
 
 if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
     echo "[i] Installing missing compilation environments: ${MISSING_PKGS[*]}"
