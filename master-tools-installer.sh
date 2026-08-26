@@ -32,17 +32,23 @@ TOOLS=(
 	"https://github.com/Raizo62/Loki_on_Kali"
 	
 )
-#verify pre-req's and env-dependencies
+# ====================================================================
+# HARDENED PRE-INSTALL: Include GTK3 Development Headers
+# ====================================================================
 echo "[*] Verifying critical OS building tools are present..."
 MISSING_PKGS=()
-command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev")
+command -v cmake &>/dev/null || MISSING_PKGS+=("cmake" "libpcap-dev" "libnet1-dev" "libssl-dev" "libgtk-3-dev")
 command -v go &>/dev/null || MISSING_PKGS+=("golang-go")
 command -v docker &>/dev/null || MISSING_PKGS+=("docker.io")
+
+# Fallback: Double check if the specific GTK3 package is missing even if cmake is present
+dpkg -l | grep -q "libgtk-3-dev" || MISSING_PKGS+=("libgtk-3-dev")
 
 if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
     echo "[i] Installing missing compilation environments: ${MISSING_PKGS[*]}"
     sudo apt-get update && sudo apt-get install -y "${MISSING_PKGS[@]}"
 fi
+
 
 # Create the target directory if it doesn't exist
 if [ ! -d "$TARGET_DIR" ]; then
@@ -188,18 +194,28 @@ else
 	sudo apt-get update && sudo apt-get install -y dotnet-sdk-8.0
 fi
 
-#install Titanis
-if ! command -v Smb2Client &>/dev/null &&  [ ! -d "/opt/Smb2Client" ]; then
-	echo "[i] Titanis is not installed. Installing Now."
-	cd "$TARGET_DIR/Titanis"
-# Fix #2: Dynamic hotpatch to downgrade unsupported langversion targets from 13.0 to 12.0
-    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>13.0<\/LangVersion>/<LangVersion>12.0<\/LangVersion>/g' {} +
-    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>preview<\/LangVersion>/<LangVersion>12.0<\/LangVersion>/g' {} +
+# ====================================================================
+# HARDENED TITANIS BUILD: Force Preview Support for C# 13 Syntax
+# ====================================================================
+if ! command -v Smb2Client &>/dev/null && [ ! -d "/opt/Smb2Client" ]; then
+	echo "[i] Titanis is not installed. Hotpatching configuration files and compiling..."
+	cd "$TARGET_DIR/Titanis" || exit 1
+    
+    # Force the compiler to enable preview framework features so modern C# 13 constructs work seamlessly
+    find . -type f -name "*.csproj" -exec sed -i 's/<LangVersion>[^<]*<\/LangVersion>/<LangVersion>preview<\/LangVersion>/g' {} +
+    
+    # Inject language configuration if a specific project doesn't have it explicitly declared
+    find . -type f -name "*.csproj" | while read -r csproj; do
+        if ! grep -q "<LangVersion>" "$csproj"; then
+            sed -i 's/<\/PropertyGroup>/  <LangVersion>preview<\/LangVersion>\n<\/PropertyGroup>/' "$csproj"
+        fi
+    done
     
 	dotnet build --configuration Release
 else
 	echo "[+] Titanis installation detected."	
 fi
+
 
 #unpacking defendnot zips
 echo "installing defendnot"
@@ -209,8 +225,9 @@ if [ -d "$TARGET_DIR/defendnot" ]; then
 	wget https://github.com/es3n1n/defendnot/releases/download/v1.6.0/x86.zip
 
 # Extract them into separate subfolders to keep them clean
-	unzip x86.zip -d x86/
-	unzip x64.zip -d x64/
+unzip -q -o x86.zip -d x86/
+unzip -q -o x64.zip -d x64/
+
 # Clean up the downloaded zips
 	rm x86.zip x64.zip
 fi
