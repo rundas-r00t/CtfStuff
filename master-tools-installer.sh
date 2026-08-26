@@ -373,7 +373,7 @@ if [ -f "$ENV_DIR/bin/scapy-smbscan" ]; then
     echo "[+] scapy-red tools already installed. Skipping..."
 else
     echo "[i] Creating isolated Python environment for scapy-red..."
-    
+fi    
     # 1. Stand up the python virtual environment structure
 			#this may not be necessary since the venv was created with scapy above
 			# sudo mkdir -p "$ENV_DIR"
